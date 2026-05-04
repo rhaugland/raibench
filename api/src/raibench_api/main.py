@@ -22,6 +22,7 @@ from raibench_api.alerts import (
 )
 from raibench_api.analyze import get_suggestions
 from raibench_api.email import send_all_digests, send_digest_email
+from raibench_api.retention import cleanup_old_events
 from raibench_api.badges import latency_badge, status_badge, success_rate_badge
 from raibench_api.db import close_pool, get_pool, init_pool
 from raibench_api.metrics import (
@@ -44,6 +45,13 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_pool()
+    # Run retention cleanup on startup (best effort)
+    try:
+        result = await cleanup_old_events()
+        if result["deleted"] > 0:
+            print(f"Retention cleanup: deleted {result['deleted']} events older than {result['retention_days']}d")
+    except Exception:
+        pass
     yield
     await close_pool()
 
@@ -222,6 +230,15 @@ async def send_all_digest(authorization: str = Header()):
     if not cron_secret or authorization != f"Bearer {cron_secret}":
         raise HTTPException(status_code=403, detail="Forbidden")
     return await send_all_digests()
+
+
+@app.post("/v1/retention/cleanup", tags=["Admin"])
+async def retention_cleanup(authorization: str = Header()):
+    """Run retention cleanup. Protected by cron secret."""
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if not cron_secret or authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return await cleanup_old_events()
 
 
 @app.get("/v1/pipelines/{pipeline_id}/suggestions", tags=["AI"])
