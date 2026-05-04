@@ -4,7 +4,7 @@ import asyncpg
 from fastapi import FastAPI, Header, HTTPException
 
 from raibench_api.db import close_pool, get_pool, init_pool
-from raibench_api.metrics import get_pipeline_metrics, get_pipeline_metrics_by_stage, get_pipelines
+from raibench_api.metrics import get_pipeline_metrics, get_pipeline_metrics_by_stage, get_pipeline_timeseries, get_pipelines
 from raibench_api.models import EventIn, IngestResponse
 
 
@@ -98,3 +98,15 @@ async def pipeline_metrics(
         return {**base, "stages": stages}
 
     return await get_pipeline_metrics(user_id, pipeline_id, period)
+
+
+@app.get("/v1/pipelines/{pipeline_id}/timeseries")
+async def pipeline_timeseries(
+    pipeline_id: str,
+    period: str = "24h",
+    bucket: str = "1h",
+    authorization: str = Header(),
+):
+    user_id = await authenticate(authorization)
+    buckets = await get_pipeline_timeseries(user_id, pipeline_id, period, bucket)
+    return {"pipeline_id": pipeline_id, "period": period, "bucket": bucket, "buckets": buckets}

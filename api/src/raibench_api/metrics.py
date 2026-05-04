@@ -98,3 +98,48 @@ async def get_pipeline_metrics_by_stage(user_id: str, pipeline_id: str, period: 
         }
         for row in rows
     ]
+
+
+BUCKET_TO_INTERVAL = {
+    "5m": "5 minutes",
+    "1h": "1 hour",
+    "1d": "1 day",
+}
+
+
+async def get_pipeline_timeseries(
+    user_id: str, pipeline_id: str, period: str, bucket: str
+) -> list[dict]:
+    pool = await get_pool()
+    interval = PERIOD_TO_INTERVAL.get(period, "24 hours")
+    bucket_interval = BUCKET_TO_INTERVAL.get(bucket, "1 hour")
+
+    rows = await pool.fetch(
+        f"""
+        SELECT
+            time_bucket('{bucket_interval}', created_at) as timestamp,
+            COUNT(*) as event_count,
+            AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END) as success_rate,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_ms) as p50_latency_ms,
+            COALESCE(SUM(cost_cents), 0) as total_cost_cents
+        FROM events
+        WHERE user_id = $1
+          AND pipeline_id = $2
+          AND created_at > NOW() - INTERVAL '{interval}'
+        GROUP BY timestamp
+        ORDER BY timestamp
+        """,
+        user_id,
+        pipeline_id,
+    )
+
+    return [
+        {
+            "timestamp": row["timestamp"].isoformat(),
+            "event_count": row["event_count"],
+            "success_rate": float(row["success_rate"]) if row["success_rate"] else 0,
+            "p50_latency_ms": int(row["p50_latency_ms"]) if row["p50_latency_ms"] else None,
+            "total_cost_cents": float(row["total_cost_cents"]),
+        }
+        for row in rows
+    ]
