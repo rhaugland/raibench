@@ -4,6 +4,7 @@ import asyncpg
 from fastapi import FastAPI, Header, HTTPException
 
 from raibench_api.db import close_pool, get_pool, init_pool
+from raibench_api.metrics import get_pipeline_metrics, get_pipeline_metrics_by_stage, get_pipelines
 from raibench_api.models import EventIn, IngestResponse
 
 
@@ -73,3 +74,27 @@ async def ingest_events(
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/v1/pipelines")
+async def list_pipelines(authorization: str = Header()):
+    user_id = await authenticate(authorization)
+    pipelines = await get_pipelines(user_id)
+    return {"pipelines": pipelines}
+
+
+@app.get("/v1/pipelines/{pipeline_id}/metrics")
+async def pipeline_metrics(
+    pipeline_id: str,
+    period: str = "24h",
+    group_by: str | None = None,
+    authorization: str = Header(),
+):
+    user_id = await authenticate(authorization)
+
+    if group_by == "stage":
+        stages = await get_pipeline_metrics_by_stage(user_id, pipeline_id, period)
+        base = await get_pipeline_metrics(user_id, pipeline_id, period)
+        return {**base, "stages": stages}
+
+    return await get_pipeline_metrics(user_id, pipeline_id, period)
