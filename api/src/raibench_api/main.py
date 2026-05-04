@@ -5,7 +5,6 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 
-import asyncpg
 import httpx
 import jwt
 from fastapi import FastAPI, Header, HTTPException, Query
