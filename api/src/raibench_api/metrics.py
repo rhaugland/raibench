@@ -100,10 +100,10 @@ async def get_pipeline_metrics_by_stage(user_id: str, pipeline_id: str, period: 
     ]
 
 
-BUCKET_TO_INTERVAL = {
-    "5m": "5 minutes",
-    "1h": "1 hour",
-    "1d": "1 day",
+BUCKET_TO_TRUNC = {
+    "5m": "hour",     # date_trunc doesn't support 5min, fall back to hour
+    "1h": "hour",
+    "1d": "day",
 }
 
 
@@ -112,12 +112,12 @@ async def get_pipeline_timeseries(
 ) -> list[dict]:
     pool = await get_pool()
     interval = PERIOD_TO_INTERVAL.get(period, "24 hours")
-    bucket_interval = BUCKET_TO_INTERVAL.get(bucket, "1 hour")
+    trunc_unit = BUCKET_TO_TRUNC.get(bucket, "hour")
 
     rows = await pool.fetch(
         f"""
         SELECT
-            time_bucket('{bucket_interval}', created_at) as timestamp,
+            date_trunc('{trunc_unit}', created_at) as timestamp,
             COUNT(*) as event_count,
             AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END) as success_rate,
             percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_ms) as p50_latency_ms,

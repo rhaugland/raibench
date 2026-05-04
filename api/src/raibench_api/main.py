@@ -6,6 +6,7 @@ import asyncpg
 import httpx
 import jwt
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from raibench_api.db import close_pool, get_pool, init_pool
 from raibench_api.metrics import get_pipeline_metrics, get_pipeline_metrics_by_stage, get_pipeline_timeseries, get_pipelines
@@ -24,6 +25,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="RAI Bench API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://dashboard-virid-tau-33.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 async def authenticate(authorization: str = Header()) -> str:

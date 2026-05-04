@@ -1,4 +1,5 @@
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+-- TimescaleDB extension (enable when available, skip on standard Postgres)
+-- CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -10,7 +11,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE events (
-    id UUID DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     pipeline_id TEXT NOT NULL,
     stage TEXT NOT NULL,
@@ -27,7 +28,8 @@ CREATE TABLE events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-SELECT create_hypertable('events', 'created_at');
+-- Convert to hypertable when TimescaleDB is available:
+-- SELECT create_hypertable('events', 'created_at');
 
 CREATE INDEX idx_events_user_pipeline ON events (user_id, pipeline_id, created_at DESC);
 CREATE INDEX idx_events_user_category ON events (user_id, task_category, created_at DESC);
