@@ -48,7 +48,14 @@ async def lifespan(app: FastAPI):
     await close_pool()
 
 
-app = FastAPI(title="RAI Bench API", lifespan=lifespan)
+app = FastAPI(
+    title="RAIRCADE API",
+    description="Production intelligence for AI applications. Track latency, cost, and reliability across your AI pipelines.",
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
 
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
@@ -80,7 +87,7 @@ async def authenticate(authorization: str = Header()) -> str:
     return str(row["id"])
 
 
-@app.post("/v1/events", response_model=IngestResponse, status_code=202)
+@app.post("/v1/events", response_model=IngestResponse, status_code=202, tags=["Ingest"])
 async def ingest_events(
     events: list[EventIn],
     authorization: str = Header(),
@@ -130,14 +137,14 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/v1/pipelines")
+@app.get("/v1/pipelines", tags=["Pipelines"])
 async def list_pipelines(authorization: str = Header()):
     user_id = await authenticate(authorization)
     pipelines = await get_pipelines(user_id)
     return {"pipelines": pipelines}
 
 
-@app.get("/v1/pipelines/{pipeline_id}/metrics")
+@app.get("/v1/pipelines/{pipeline_id}/metrics", tags=["Pipelines"])
 async def pipeline_metrics(
     pipeline_id: str,
     period: str = "24h",
@@ -154,7 +161,7 @@ async def pipeline_metrics(
     return await get_pipeline_metrics(user_id, pipeline_id, period)
 
 
-@app.get("/v1/pipelines/{pipeline_id}/timeseries")
+@app.get("/v1/pipelines/{pipeline_id}/timeseries", tags=["Pipelines"])
 async def pipeline_timeseries(
     pipeline_id: str,
     period: str = "24h",
@@ -166,7 +173,7 @@ async def pipeline_timeseries(
     return {"pipeline_id": pipeline_id, "period": period, "bucket": bucket, "buckets": buckets}
 
 
-@app.get("/v1/pipelines/{pipeline_id}/events/recent")
+@app.get("/v1/pipelines/{pipeline_id}/events/recent", tags=["Pipelines"])
 async def recent_events(
     pipeline_id: str,
     limit: int = 50,
@@ -178,7 +185,7 @@ async def recent_events(
     return {"pipeline_id": pipeline_id, "events": events}
 
 
-@app.get("/v1/pipelines/{pipeline_id}/errors")
+@app.get("/v1/pipelines/{pipeline_id}/errors", tags=["Pipelines"])
 async def pipeline_errors(
     pipeline_id: str,
     limit: int = 50,
@@ -190,7 +197,7 @@ async def pipeline_errors(
     return {"pipeline_id": pipeline_id, "errors": errors}
 
 
-@app.get("/v1/digest")
+@app.get("/v1/digest", tags=["Digest"])
 async def weekly_digest(authorization: str = Header()):
     """Get weekly digest summary across all pipelines."""
     user_id = await authenticate(authorization)
@@ -198,7 +205,7 @@ async def weekly_digest(authorization: str = Header()):
     return digest
 
 
-@app.post("/v1/digest/send")
+@app.post("/v1/digest/send", tags=["Digest"])
 async def send_digest(authorization: str = Header()):
     """Send weekly digest email to current user."""
     user_id = await authenticate(authorization)
@@ -208,7 +215,7 @@ async def send_digest(authorization: str = Header()):
     return {"sent": True}
 
 
-@app.post("/v1/digest/send-all")
+@app.post("/v1/digest/send-all", tags=["Digest"])
 async def send_all_digest(authorization: str = Header()):
     """Send digest to all users. Protected by cron secret."""
     cron_secret = os.environ.get("CRON_SECRET", "")
@@ -217,7 +224,7 @@ async def send_all_digest(authorization: str = Header()):
     return await send_all_digests()
 
 
-@app.get("/v1/pipelines/{pipeline_id}/suggestions")
+@app.get("/v1/pipelines/{pipeline_id}/suggestions", tags=["AI"])
 async def pipeline_suggestions(
     pipeline_id: str,
     authorization: str = Header(),
@@ -231,7 +238,7 @@ async def pipeline_suggestions(
 
 # ─── Alerts ───
 
-@app.get("/v1/alerts")
+@app.get("/v1/alerts", tags=["Alerts"])
 async def list_alerts(
     pipeline_id: str | None = None,
     authorization: str = Header(),
@@ -241,7 +248,7 @@ async def list_alerts(
     return {"rules": [{**r, "id": str(r["id"]), "user_id": str(r["user_id"])} for r in rules]}
 
 
-@app.post("/v1/alerts", status_code=201)
+@app.post("/v1/alerts", status_code=201, tags=["Alerts"])
 async def create_alert(
     rule: AlertRuleIn,
     authorization: str = Header(),
@@ -254,7 +261,7 @@ async def create_alert(
     return {"rule": {**created, "id": str(created["id"]), "user_id": str(created["user_id"])}}
 
 
-@app.delete("/v1/alerts/{rule_id}")
+@app.delete("/v1/alerts/{rule_id}", tags=["Alerts"])
 async def remove_alert(rule_id: str, authorization: str = Header()):
     user_id = await authenticate(authorization)
     deleted = await delete_alert_rule(user_id, rule_id)
@@ -263,7 +270,7 @@ async def remove_alert(rule_id: str, authorization: str = Header()):
     return {"deleted": True}
 
 
-@app.post("/v1/alerts/test")
+@app.post("/v1/alerts/test", tags=["Alerts"])
 async def test_alert_webhook(
     webhook_url: str,
     channel: str = "slack",
@@ -278,7 +285,7 @@ async def test_alert_webhook(
 
 # ─── Data Export ───
 
-@app.get("/v1/pipelines/{pipeline_id}/export")
+@app.get("/v1/pipelines/{pipeline_id}/export", tags=["Export"])
 async def export_pipeline_data(
     pipeline_id: str,
     format: str = Query("json", pattern="^(json|csv)$"),
@@ -308,7 +315,7 @@ async def export_pipeline_data(
     )
 
 
-@app.get("/v1/export/all")
+@app.get("/v1/export/all", tags=["Export"])
 async def export_all_data(
     format: str = Query("json", pattern="^(json|csv)$"),
     authorization: str = Header(),
@@ -343,7 +350,7 @@ async def export_all_data(
 
 # ─── Badges (public, no auth) ───
 
-@app.get("/badge/{api_key}/{pipeline_id}")
+@app.get("/badge/{api_key}/{pipeline_id}", tags=["Badges"])
 async def pipeline_badge(
     api_key: str,
     pipeline_id: str,
@@ -373,7 +380,7 @@ async def pipeline_badge(
     )
 
 
-@app.get("/v1/auth/github")
+@app.get("/v1/auth/github", tags=["Auth"])
 async def github_auth_redirect():
     """Redirect user to GitHub OAuth."""
     return {
@@ -381,7 +388,7 @@ async def github_auth_redirect():
     }
 
 
-@app.post("/v1/auth/github/callback")
+@app.post("/v1/auth/github/callback", tags=["Auth"])
 async def github_auth_callback(code: str):
     """Exchange GitHub code for user session + API key."""
     async with httpx.AsyncClient() as client:
