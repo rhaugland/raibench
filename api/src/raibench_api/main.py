@@ -1,11 +1,19 @@
+import os
+import secrets
 from contextlib import asynccontextmanager
 
 import asyncpg
+import httpx
+import jwt
 from fastapi import FastAPI, Header, HTTPException
 
 from raibench_api.db import close_pool, get_pool, init_pool
 from raibench_api.metrics import get_pipeline_metrics, get_pipeline_metrics_by_stage, get_pipeline_timeseries, get_pipelines
 from raibench_api.models import EventIn, IngestResponse
+
+GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
+JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret")
 
 
 @asynccontextmanager
@@ -110,3 +118,67 @@ async def pipeline_timeseries(
     user_id = await authenticate(authorization)
     buckets = await get_pipeline_timeseries(user_id, pipeline_id, period, bucket)
     return {"pipeline_id": pipeline_id, "period": period, "bucket": bucket, "buckets": buckets}
+
+
+@app.get("/v1/auth/github")
+async def github_auth_redirect():
+    """Redirect user to GitHub OAuth."""
+    return {
+        "url": f"https://github.com/login/oauth/authorize?client_id={GITHUB_CLIENT_ID}&scope=user:email"
+    }
+
+
+@app.post("/v1/auth/github/callback")
+async def github_auth_callback(code: str):
+    """Exchange GitHub code for user session + API key."""
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(
+            "https://github.com/login/oauth/access_token",
+            json={
+                "client_id": GITHUB_CLIENT_ID,
+                "client_secret": GITHUB_CLIENT_SECRET,
+                "code": code,
+            },
+            headers={"accept": "application/json"},
+        )
+        access_token = token_resp.json().get("access_token")
+
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Invalid code")
+
+        user_resp = await client.get(
+            "https://api.github.com/user",
+            headers={"authorization": f"Bearer {access_token}"},
+        )
+        github_user = user_resp.json()
+
+    pool = await get_pool()
+    github_id = github_user["id"]
+    username = github_user["login"]
+    email = github_user.get("email")
+
+    row = await pool.fetchrow(
+        "SELECT id, api_key FROM users WHERE github_id = $1", github_id
+    )
+
+    if row:
+        user_id = str(row["id"])
+        api_key = row["api_key"]
+    else:
+        api_key = f"rb_{secrets.token_urlsafe(32)}"
+        new_row = await pool.fetchrow(
+            """
+            INSERT INTO users (github_id, github_username, email, api_key)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            github_id,
+            username,
+            email,
+            api_key,
+        )
+        user_id = str(new_row["id"])
+
+    token = jwt.encode({"user_id": user_id, "username": username}, JWT_SECRET, algorithm="HS256")
+
+    return {"token": token, "api_key": api_key, "username": username}
