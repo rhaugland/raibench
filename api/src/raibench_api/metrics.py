@@ -100,6 +100,153 @@ async def get_pipeline_metrics_by_stage(user_id: str, pipeline_id: str, period: 
     ]
 
 
+async def get_recent_events(user_id: str, pipeline_id: str, limit: int = 50) -> list[dict]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT pipeline_id, stage, provider, model, latency_ms,
+               token_count, cost_cents, success, metadata, created_at
+        FROM events
+        WHERE user_id = $1 AND pipeline_id = $2
+        ORDER BY created_at DESC
+        LIMIT $3
+        """,
+        user_id, pipeline_id, limit,
+    )
+    return [
+        {
+            "pipeline_id": row["pipeline_id"],
+            "stage": row["stage"],
+            "provider": row["provider"],
+            "model": row["model"],
+            "latency_ms": row["latency_ms"],
+            "token_count": row["token_count"],
+            "cost_cents": float(row["cost_cents"]) if row["cost_cents"] else None,
+            "success": row["success"],
+            "metadata": row["metadata"],
+            "created_at": row["created_at"].isoformat(),
+        }
+        for row in rows
+    ]
+
+
+async def get_recent_errors(user_id: str, pipeline_id: str, limit: int = 50) -> list[dict]:
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT stage, provider, model, latency_ms, metadata, created_at
+        FROM events
+        WHERE user_id = $1 AND pipeline_id = $2 AND success = false
+        ORDER BY created_at DESC
+        LIMIT $3
+        """,
+        user_id, pipeline_id, limit,
+    )
+    return [
+        {
+            "stage": row["stage"],
+            "provider": row["provider"],
+            "model": row["model"],
+            "latency_ms": row["latency_ms"],
+            "error": _extract_error(row["metadata"]),
+            "created_at": row["created_at"].isoformat(),
+        }
+        for row in rows
+    ]
+
+
+def _extract_error(metadata) -> str:
+    """Extract error message from metadata JSONB."""
+    if not metadata:
+        return "Unknown error"
+    if isinstance(metadata, dict):
+        return metadata.get("error", str(metadata))
+    if isinstance(metadata, str):
+        try:
+            import json
+            m = json.loads(metadata)
+            return m.get("error", metadata)
+        except (json.JSONDecodeError, AttributeError):
+            return metadata
+    return str(metadata)
+
+
+async def get_weekly_digest(user_id: str) -> dict:
+    """Get weekly summary across all pipelines for digest email."""
+    pool = await get_pool()
+
+    # This week vs last week
+    row = await pool.fetchrow(
+        """
+        SELECT
+            COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as this_week_events,
+            COUNT(CASE WHEN created_at BETWEEN NOW() - INTERVAL '14 days' AND NOW() - INTERVAL '7 days' THEN 1 END) as last_week_events,
+            AVG(CASE WHEN created_at > NOW() - INTERVAL '7 days' AND success THEN 1.0
+                     WHEN created_at > NOW() - INTERVAL '7 days' THEN 0.0
+                     ELSE NULL END) as this_week_success,
+            AVG(CASE WHEN created_at BETWEEN NOW() - INTERVAL '14 days' AND NOW() - INTERVAL '7 days' AND success THEN 1.0
+                     WHEN created_at BETWEEN NOW() - INTERVAL '14 days' AND NOW() - INTERVAL '7 days' THEN 0.0
+                     ELSE NULL END) as last_week_success,
+            COALESCE(SUM(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN cost_cents END), 0) as this_week_cost,
+            COALESCE(SUM(CASE WHEN created_at BETWEEN NOW() - INTERVAL '14 days' AND NOW() - INTERVAL '7 days' THEN cost_cents END), 0) as last_week_cost
+        FROM events
+        WHERE user_id = $1
+          AND created_at > NOW() - INTERVAL '14 days'
+        """,
+        user_id,
+    )
+
+    # Per-pipeline breakdown
+    pipelines = await pool.fetch(
+        """
+        SELECT
+            pipeline_id,
+            COUNT(*) as events,
+            AVG(CASE WHEN success THEN 1.0 ELSE 0.0 END) as success_rate,
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_ms) as p50_latency_ms,
+            COALESCE(SUM(cost_cents), 0) as cost_cents
+        FROM events
+        WHERE user_id = $1 AND created_at > NOW() - INTERVAL '7 days'
+        GROUP BY pipeline_id
+        ORDER BY COUNT(*) DESC
+        """,
+        user_id,
+    )
+
+    this_week_success = float(row["this_week_success"]) if row["this_week_success"] else 0
+    last_week_success = float(row["last_week_success"]) if row["last_week_success"] else 0
+    this_week_cost = float(row["this_week_cost"])
+    last_week_cost = float(row["last_week_cost"])
+
+    return {
+        "this_week": {
+            "events": row["this_week_events"],
+            "success_rate": this_week_success,
+            "cost_cents": this_week_cost,
+        },
+        "last_week": {
+            "events": row["last_week_events"],
+            "success_rate": last_week_success,
+            "cost_cents": last_week_cost,
+        },
+        "changes": {
+            "events_delta": row["this_week_events"] - row["last_week_events"],
+            "success_delta": this_week_success - last_week_success,
+            "cost_delta": this_week_cost - last_week_cost,
+        },
+        "pipelines": [
+            {
+                "pipeline_id": p["pipeline_id"],
+                "events": p["events"],
+                "success_rate": float(p["success_rate"]) if p["success_rate"] else 0,
+                "p50_latency_ms": int(p["p50_latency_ms"]) if p["p50_latency_ms"] else None,
+                "cost_cents": float(p["cost_cents"]),
+            }
+            for p in pipelines
+        ],
+    }
+
+
 BUCKET_TO_TRUNC = {
     "5m": "hour",     # date_trunc doesn't support 5min, fall back to hour
     "1h": "hour",

@@ -20,3 +20,12 @@ class EventIn(BaseModel):
 
 class IngestResponse(BaseModel):
     accepted: int
+
+
+class AlertRuleIn(BaseModel):
+    pipeline_id: str
+    webhook_url: str
+    channel: str = "slack"  # "slack" or "discord"
+    metric: str  # "success_rate", "p50_latency_ms", "daily_cost_cents"
+    operator: str = "lt"  # "lt" or "gt"
+    threshold: float

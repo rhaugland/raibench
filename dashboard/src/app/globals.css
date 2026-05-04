@@ -1,26 +1,183 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-void: #09091a;
+  --bg-surface: #111128;
+  --bg-raised: #1a1a3a;
+  --bg-elevated: #222250;
+  --border-subtle: #2a2a52;
+  --border-medium: #3a3a6a;
+
+  --pink: #ff2e7e;
+  --pink-soft: #ff6ba6;
+  --pink-muted: #b3245a;
+  --electric: #4d7cff;
+  --electric-soft: #7da1ff;
+  --mint: #3be8b0;
+  --mint-soft: #72f5cd;
+  --amber: #ffb020;
+  --amber-soft: #ffc85c;
+  --coral: #ff5c5c;
+  --lavender: #b48eff;
+
+  --text-bright: #f0eef8;
+  --text-normal: #c8c4d8;
+  --text-muted: #7a7598;
+  --text-faint: #4a4570;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-bg-void: var(--bg-void);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-medium: var(--border-medium);
+  --color-pink: var(--pink);
+  --color-pink-soft: var(--pink-soft);
+  --color-pink-muted: var(--pink-muted);
+  --color-electric: var(--electric);
+  --color-electric-soft: var(--electric-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-coral: var(--coral);
+  --color-lavender: var(--lavender);
+  --color-text-bright: var(--text-bright);
+  --color-text-normal: var(--text-normal);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-void);
+  color: var(--text-normal);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Subtle space dust */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 8% 15%, rgba(255, 46, 126, 0.12) 0%, transparent 100%),
+    radial-gradient(1px 1px at 22% 72%, rgba(77, 124, 255, 0.1) 0%, transparent 100%),
+    radial-gradient(1px 1px at 48% 8%, rgba(59, 232, 176, 0.08) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 70% 85%, rgba(255, 46, 126, 0.1) 0%, transparent 100%),
+    radial-gradient(1px 1px at 92% 35%, rgba(77, 124, 255, 0.08) 0%, transparent 100%),
+    radial-gradient(1px 1px at 35% 50%, rgba(180, 142, 255, 0.06) 0%, transparent 100%),
+    radial-gradient(1px 1px at 60% 25%, rgba(255, 46, 126, 0.06) 0%, transparent 100%),
+    radial-gradient(1px 1px at 80% 60%, rgba(59, 232, 176, 0.06) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Noise grain */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Card styles */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+}
+
+.card-raised {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+}
+
+.card-inset {
+  background: var(--bg-void);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+/* Orb — circular badge */
+.orb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 15px;
+  border: 2px solid;
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+
+/* Pill badge */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+
+/* Button */
+.btn {
+  font-weight: 700;
+  font-size: 12px;
+  padding: 8px 18px;
+  border: 2px solid;
+  border-radius: 10px;
+  background: transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+
+.btn-pink { border-color: var(--pink); color: var(--pink); }
+.btn-pink:hover { background: rgba(255, 46, 126, 0.1); }
+.btn-electric { border-color: var(--electric); color: var(--electric); }
+.btn-electric:hover { background: rgba(77, 124, 255, 0.1); }
+.btn-mint { border-color: var(--mint); color: var(--mint); }
+.btn-mint:hover { background: rgba(59, 232, 176, 0.1); }
+
+/* Soft pulse */
+@keyframes softPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-pulse-soft { animation: softPulse 2.5s ease-in-out infinite; }
+
+/* Float */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float { animation: float 4s ease-in-out infinite; }
+
+/* Shimmer for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255, 46, 126, 0.06) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }

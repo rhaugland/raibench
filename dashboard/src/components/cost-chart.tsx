@@ -1,19 +1,10 @@
 "use client";
 
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 
-interface DataPoint {
-  timestamp: string;
-  total_cost_cents: number;
-}
+interface DataPoint { timestamp: string; total_cost_cents: number; }
 
 export function CostChart({ data }: { data: DataPoint[] }) {
   const formatted = data.map((d) => ({
@@ -23,17 +14,15 @@ export function CostChart({ data }: { data: DataPoint[] }) {
   }));
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-      <h3 className="text-sm font-medium text-gray-400 mb-4">Cost (cents)</h3>
+    <div className="card border-amber/15 p-5">
+      <h3 className="text-xs font-bold text-amber uppercase tracking-wider mb-4">Cost (cents)</h3>
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={formatted}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
-          <YAxis stroke="#6b7280" fontSize={12} />
-          <Tooltip
-            contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151" }}
-          />
-          <Bar dataKey="cost" fill="#f59e0b" radius={[2, 2, 0, 0]} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1a1a3a" />
+          <XAxis dataKey="time" stroke="#4a4570" fontSize={12} fontFamily="Inter" />
+          <YAxis stroke="#4a4570" fontSize={12} fontFamily="Inter" />
+          <Tooltip contentStyle={{ backgroundColor: "#111128", border: "1px solid #ffb020", borderRadius: 12, fontFamily: "Inter", fontSize: 13 }} />
+          <Bar dataKey="cost" fill="#ffb020" radius={[6, 6, 0, 0]} fillOpacity={0.8} />
         </BarChart>
       </ResponsiveContainer>
     </div>

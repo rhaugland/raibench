@@ -1,8 +1,23 @@
 [project]
 name = "raibench"
 version = "0.1.0"
-description = "Production intelligence SDK for AI applications"
-requires-python = ">=3.11"
+description = "Production intelligence SDK for AI applications — track latency, cost, and reliability across your AI pipelines."
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Ryan Haugland" }]
+keywords = ["ai", "llm", "monitoring", "observability", "rag", "openai", "anthropic"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Monitoring",
+]
 dependencies = [
     "pydantic>=2.0",
     "httpx>=0.27",
@@ -10,6 +25,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "respx>=0.21"]
+
+[project.urls]
+Homepage = "https://github.com/ryanhaugland/raibench"
+Documentation = "https://github.com/ryanhaugland/raibench#readme"
+Repository = "https://github.com/ryanhaugland/raibench"
+Issues = "https://github.com/ryanhaugland/raibench/issues"
+
+[project.scripts]
+raibench = "raibench.cli:main"
 
 [build-system]
 requires = ["hatchling"]
